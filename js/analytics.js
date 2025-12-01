@@ -4,7 +4,7 @@
     'use strict';
 
     // CONFIGURATION: Replace this with your Google Apps Script Web App URL
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0JNo1eYXx_HAQWbD0-634xb3QNG67fjF-TiaTqfu_w08X9gT8E8-MChvqHguvq-io/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0JNo1eYXx_HAQWbD0-634xb3QNG67fjF-TiaTqfu_w08X9gT8E8-MChvqHguvq-io/exec'
     
     // Set to false to disable Google Sheets logging (will only log locally)
     const ENABLE_REMOTE_LOGGING = true;
@@ -371,11 +371,11 @@
     
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-        // Don't send initial data - only send when leaving
-        // const data = collectData();
-        // logData(data);
+        // Send initial data on load
+        const initialData = collectData();
+        logData(initialData);
         
-        console.log('📊 Analytics initialized. Will send data on page leave.');
+        console.log('📊 Analytics initialized. Initial data sent.');
         
         // Track all clicks
         document.addEventListener('click', trackClick);
@@ -396,6 +396,13 @@
             const seconds = Math.round((Date.now() - pageLoadTime) / 1000);
             indicator.textContent = `📊 Analytics Active (${seconds}s)`;
         }, 1000);
+        
+        // Send updated data every 10 seconds while on page
+        setInterval(function() {
+            const updateData = collectData();
+            console.log('⏱️ Sending periodic update. Time on page:', updateData.timeOnPage, 's');
+            logData(updateData);
+        }, 10000); // Every 10 seconds
     });
     
     // Track page visibility changes
