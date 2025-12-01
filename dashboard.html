@@ -407,11 +407,20 @@
                 
                 const data = await response.json();
                 
+                console.log('Received data from Google Sheets:', data);
+                
                 if (data.error) {
                     throw new Error(data.error);
                 }
                 
                 allData = data.rows || [];
+                console.log('Total rows:', allData.length);
+                
+                if (allData.length > 0) {
+                    console.log('First row keys:', Object.keys(allData[0]));
+                    console.log('First row:', allData[0]);
+                }
+                
                 processData();
                 displaySessions();
                 updateStats();
@@ -426,26 +435,49 @@
         function processData() {
             groupedSessions = {};
             
+            console.log('Processing', allData.length, 'rows');
+            if (allData.length > 0) {
+                console.log('Sample row:', allData[0]);
+                console.log('Available fields:', Object.keys(allData[0]));
+            }
+            
             allData.forEach(row => {
-                const sessionId = row.sessionId || 'unknown';
+                // Now using normalized field names from Google Apps Script
+                const sessionId = row.sessionid || 'unknown';
+                const sessionStart = row.sessionstart;
+                const sessionDuration = parseInt(row.sessionduration || 0);
+                const timeOnPage = parseInt(row.timeonpage || 0);
+                const timestamp = row.timestamp;
+                const url = row.url;
                 
                 if (!groupedSessions[sessionId]) {
                     groupedSessions[sessionId] = {
                         sessionId: sessionId,
-                        sessionStart: row.sessionStartTime,
+                        sessionStart: sessionStart,
                         pages: [],
                         totalDuration: 0,
-                        lastUpdate: row.timestamp
+                        lastUpdate: timestamp
                     };
                 }
                 
-                groupedSessions[sessionId].pages.push(row);
+                groupedSessions[sessionId].pages.push({
+                    timestamp: timestamp,
+                    url: url,
+                    timeOnPage: timeOnPage,
+                    sessionDuration: sessionDuration,
+                    platform: row.platform,
+                    screenWidth: row.screenwidth,
+                    screenHeight: row.screenheight
+                });
+                
                 groupedSessions[sessionId].totalDuration = Math.max(
                     groupedSessions[sessionId].totalDuration,
-                    row.sessionDuration || 0
+                    sessionDuration
                 );
-                groupedSessions[sessionId].lastUpdate = row.timestamp;
+                groupedSessions[sessionId].lastUpdate = timestamp;
             });
+            
+            console.log('Grouped into', Object.keys(groupedSessions).length, 'sessions:', Object.keys(groupedSessions));
             
             // Sort pages within each session by timestamp
             Object.values(groupedSessions).forEach(session => {
@@ -546,15 +578,25 @@
             
             if (sessions.length > 0) {
                 const avgDuration = Math.round(
-                    sessions.reduce((sum, s) => sum + s.totalDuration, 0) / sessions.length
+                    sessions.reduce((sum, s) => sum + (s.totalDuration || 0), 0) / sessions.length
                 );
                 document.getElementById('avgSessionDuration').textContent = avgDuration + 's';
             }
             
             if (allData.length > 0) {
-                const avgTimeOnPage = Math.round(
-                    allData.reduce((sum, row) => sum + (row.timeOnPage || 0), 0) / allData.length
-                );
+                // Calculate avg time on page from all rows
+                let totalTime = 0;
+                let validRows = 0;
+                
+                allData.forEach(row => {
+                    const timeOnPage = parseInt(row.timeonpage || 0);
+                    if (timeOnPage > 0) {
+                        totalTime += timeOnPage;
+                        validRows++;
+                    }
+                });
+                
+                const avgTimeOnPage = validRows > 0 ? Math.round(totalTime / validRows) : 0;
                 document.getElementById('avgTimeOnPage').textContent = avgTimeOnPage + 's';
             }
         }
