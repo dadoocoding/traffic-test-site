@@ -1,3 +1,4 @@
+//https://script.google.com/macros/s/AKfycbz0JNo1eYXx_HAQWbD0-634xb3QNG67fjF-TiaTqfu_w08X9gT8E8-MChvqHguvq-io/exec
 // Analytics and Fingerprinting Script with Google Sheets Backend
 (function() {
     'use strict';
@@ -18,11 +19,13 @@
     function getSessionId() {
         const stored = sessionStorage.getItem('sessionId');
         if (stored) {
+            console.log('📌 Using existing session ID:', stored);
             return stored;
         } else {
             // Generate unique session ID: timestamp + random string
             const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
             sessionStorage.setItem('sessionId', id);
+            console.log('🆕 Generated new session ID:', id);
             return id;
         }
     }
@@ -262,6 +265,8 @@
             loadTime: data.performance.timing.loadTime,
             domReady: data.performance.timing.domReady
         };
+        
+        console.log('📤 Sending to Google Sheets with Session ID:', flatData.sessionId);
         
         return fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
