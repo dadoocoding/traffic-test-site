@@ -150,6 +150,34 @@
             border-radius: 4px;
         }
 
+        .session-card.inactive {
+            opacity: 0.6;
+            border-left-color: #95a5a6;
+        }
+
+        .session-card.inactive .session-id {
+            color: #95a5a6;
+        }
+
+        .session-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-left: 0.5rem;
+        }
+
+        .session-status.active {
+            background: #27ae60;
+            color: white;
+        }
+
+        .session-status.inactive {
+            background: #95a5a6;
+            color: white;
+        }
+
         .session-header {
             display: flex;
             justify-content: space-between;
@@ -601,23 +629,46 @@
                 return;
             }
             
+            // Consider a session "active" if last activity was within 2 minutes
+            const activeThresholdMs = 2 * 60 * 1000; // 2 minutes
+            const now = new Date();
+            
             // Sort by most recent first
             sessions.sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
             
             container.innerHTML = sessions.map((session, sessionIndex) => {
                 const startTime = new Date(session.sessionStart).toLocaleString();
-                const lastUpdate = new Date(session.lastUpdate).toLocaleString();
+                const lastUpdate = new Date(session.lastUpdate);
+                const lastUpdateStr = lastUpdate.toLocaleString();
                 const pageCount = session.pages.length;
                 const totalTime = session.pages.reduce((sum, page) => sum + page.timeOnPage, 0);
                 
+                // Determine if session is active
+                const isActive = (now - lastUpdate) < activeThresholdMs;
+                const statusClass = isActive ? 'active' : 'inactive';
+                const statusText = isActive ? 'ACTIVE' : 'INACTIVE';
+                const cardClass = isActive ? '' : 'inactive';
+                
+                // Calculate time since last activity
+                const minutesSinceUpdate = Math.floor((now - lastUpdate) / 60000);
+                const timeSinceText = minutesSinceUpdate < 1 
+                    ? 'Just now' 
+                    : minutesSinceUpdate === 1 
+                        ? '1 minute ago' 
+                        : `${minutesSinceUpdate} minutes ago`;
+                
                 return `
-                    <div class="session-card">
+                    <div class="session-card ${cardClass}">
                         <div class="session-header" onclick="toggleSession(${sessionIndex})">
                             <div class="session-header-left">
                                 <span class="collapse-icon" id="icon-${sessionIndex}">▼</span>
                                 <div>
-                                    <div class="session-id">Session: ${session.sessionId}</div>
-                                    <div class="session-time">${startTime}</div>
+                                    <div>
+                                        <span class="session-id">Session: ${session.sessionId}</span>
+                                        <span class="session-status ${statusClass}">${statusText}</span>
+                                    </div>
+                                    <div class="session-time">Started: ${startTime}</div>
+                                    <div class="session-time">Last activity: ${timeSinceText}</div>
                                 </div>
                             </div>
                             <div style="text-align: right;">
@@ -688,7 +739,16 @@
         function updateStats() {
             const sessions = Object.values(groupedSessions);
             
-            document.getElementById('totalSessions').textContent = sessions.length;
+            // Consider a session "active" if last activity was within 2 minutes
+            const activeThresholdMs = 2 * 60 * 1000; // 2 minutes
+            const now = new Date();
+            
+            const activeSessions = sessions.filter(session => {
+                const lastUpdate = new Date(session.lastUpdate);
+                return (now - lastUpdate) < activeThresholdMs;
+            });
+            
+            document.getElementById('totalSessions').textContent = activeSessions.length;
             document.getElementById('totalPageViews').textContent = allData.length;
             
             if (sessions.length > 0) {
@@ -714,6 +774,8 @@
                 const avgTimeOnPage = validRows > 0 ? Math.round(totalTime / validRows) : 0;
                 document.getElementById('avgTimeOnPage').textContent = avgTimeOnPage + 's';
             }
+            
+            console.log('Total sessions:', sessions.length, 'Active sessions:', activeSessions.length);
         }
 
         // Show loading state
