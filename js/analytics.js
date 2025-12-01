@@ -1,4 +1,4 @@
-// Analytics and Fingerprinting Script with Google Sheets Backend
+//const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0JNo1eYXx_HAQWbD0-634xb3QNG67fjF-TiaTqfu_w08X9gT8E8-MChvqHguvq-io/exec';
 (function() {
     'use strict';
 
@@ -297,6 +297,8 @@
     function sendPageLeaveData() {
         const finalData = collectData();
         
+        console.log('🚪 Page leave detected! Time on page:', finalData.timeOnPage, 'seconds');
+        
         // Log locally
         try {
             const visits = JSON.parse(localStorage.getItem('visits') || '[]');
@@ -344,7 +346,8 @@
             };
             
             const blob = new Blob([JSON.stringify(flatData)], { type: 'application/json' });
-            navigator.sendBeacon(GOOGLE_SCRIPT_URL, blob);
+            const sent = navigator.sendBeacon(GOOGLE_SCRIPT_URL, blob);
+            console.log('📤 SendBeacon result:', sent ? 'SUCCESS' : 'FAILED');
         }
         
         console.log('📤 Final page duration sent:', finalData.timeOnPage, 'seconds');
@@ -352,8 +355,11 @@
     
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-        const data = collectData();
-        logData(data);
+        // Don't send initial data - only send when leaving
+        // const data = collectData();
+        // logData(data);
+        
+        console.log('📊 Analytics initialized. Will send data on page leave.');
         
         // Track all clicks
         document.addEventListener('click', trackClick);
