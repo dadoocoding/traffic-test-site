@@ -154,9 +154,32 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
             padding-bottom: 0.5rem;
             border-bottom: 2px solid #ddd;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .session-header:hover {
+            background: rgba(102, 126, 234, 0.05);
+            margin: -0.5rem -1rem 0.5rem -1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+        }
+
+        .session-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .collapse-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
         }
 
         .session-id {
@@ -169,6 +192,42 @@
         .session-time {
             color: #666;
             font-size: 0.9rem;
+        }
+
+        .session-content {
+            margin-top: 1rem;
+            transition: all 0.3s ease-out;
+            overflow: hidden;
+        }
+
+        .session-content.collapsed {
+            max-height: 0;
+            margin-top: 0;
+            opacity: 0;
+        }
+
+        .session-summary {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .summary-label {
+            font-size: 0.85rem;
+            color: #666;
         }
 
         .page-visits {
@@ -455,12 +514,14 @@
                         sessionId: sessionId,
                         sessionStart: sessionStart,
                         pages: [],
+                        rawEntries: [],
                         totalDuration: 0,
                         lastUpdate: timestamp
                     };
                 }
                 
-                groupedSessions[sessionId].pages.push({
+                // Store all raw entries for processing
+                groupedSessions[sessionId].rawEntries.push({
                     timestamp: timestamp,
                     url: url,
                     timeOnPage: timeOnPage,
@@ -477,12 +538,29 @@
                 groupedSessions[sessionId].lastUpdate = timestamp;
             });
             
-            console.log('Grouped into', Object.keys(groupedSessions).length, 'sessions:', Object.keys(groupedSessions));
-            
-            // Sort pages within each session by timestamp
+            // Consolidate page visits - keep only the last (longest) entry for each URL
             Object.values(groupedSessions).forEach(session => {
+                const pageMap = {};
+                
+                // Sort raw entries by timestamp
+                session.rawEntries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                // Group by URL and keep the last (longest duration) entry for each
+                session.rawEntries.forEach(entry => {
+                    const urlKey = entry.url;
+                    if (!pageMap[urlKey] || entry.timeOnPage > pageMap[urlKey].timeOnPage) {
+                        pageMap[urlKey] = entry;
+                    }
+                });
+                
+                // Convert back to array, maintaining visit order
+                session.pages = Object.values(pageMap);
                 session.pages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                delete session.rawEntries; // Clean up
             });
+            
+            console.log('Grouped into', Object.keys(groupedSessions).length, 'sessions:', Object.keys(groupedSessions));
             
             updateSessionFilter();
         }
@@ -526,47 +604,84 @@
             // Sort by most recent first
             sessions.sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
             
-            container.innerHTML = sessions.map(session => {
+            container.innerHTML = sessions.map((session, sessionIndex) => {
                 const startTime = new Date(session.sessionStart).toLocaleString();
                 const lastUpdate = new Date(session.lastUpdate).toLocaleString();
+                const pageCount = session.pages.length;
+                const totalTime = session.pages.reduce((sum, page) => sum + page.timeOnPage, 0);
                 
                 return `
                     <div class="session-card">
-                        <div class="session-header">
-                            <div>
-                                <div class="session-id">Session: ${session.sessionId}</div>
-                                <div class="session-time">Started: ${startTime}</div>
-                                <div class="session-time">Last Activity: ${lastUpdate}</div>
+                        <div class="session-header" onclick="toggleSession(${sessionIndex})">
+                            <div class="session-header-left">
+                                <span class="collapse-icon" id="icon-${sessionIndex}">▼</span>
+                                <div>
+                                    <div class="session-id">Session: ${session.sessionId}</div>
+                                    <div class="session-time">${startTime}</div>
+                                </div>
                             </div>
-                            <div>
+                            <div style="text-align: right;">
                                 <div class="stat-value" style="font-size: 1.5rem;">${session.totalDuration}s</div>
-                                <div class="stat-label">Total Duration</div>
+                                <div class="stat-label">${pageCount} page${pageCount !== 1 ? 's' : ''} visited</div>
                             </div>
                         </div>
                         
-                        <div class="page-visits">
-                            <strong>Page Visits (${session.pages.length}):</strong>
-                            ${session.pages.map((page, idx) => {
-                                const pageUrl = new URL(page.url).pathname;
-                                const timestamp = new Date(page.timestamp).toLocaleTimeString();
-                                
-                                return `
-                                    <div class="page-visit">
-                                        <div class="page-visit-header">
-                                            <span class="page-url">${idx + 1}. ${pageUrl}</span>
-                                            <span class="page-duration">${page.timeOnPage}s on page</span>
+                        <div class="session-content" id="content-${sessionIndex}">
+                            <div class="session-summary">
+                                <div class="summary-item">
+                                    <div class="summary-value">${pageCount}</div>
+                                    <div class="summary-label">Pages</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-value">${totalTime}s</div>
+                                    <div class="summary-label">Total Time on Pages</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-value">${session.totalDuration}s</div>
+                                    <div class="summary-label">Session Duration</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-value">${session.pages[0]?.platform || 'Unknown'}</div>
+                                    <div class="summary-label">Platform</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-value">${session.pages[0]?.screenWidth}x${session.pages[0]?.screenHeight}</div>
+                                    <div class="summary-label">Screen</div>
+                                </div>
+                            </div>
+                            
+                            <div class="page-visits">
+                                <strong>Page Journey:</strong>
+                                ${session.pages.map((page, idx) => {
+                                    const pageUrl = page.url ? new URL(page.url).pathname : 'Unknown';
+                                    const timestamp = new Date(page.timestamp).toLocaleTimeString();
+                                    
+                                    return `
+                                        <div class="page-visit">
+                                            <div class="page-visit-header">
+                                                <span class="page-url">${idx + 1}. ${pageUrl}</span>
+                                                <span class="page-duration">${page.timeOnPage}s</span>
+                                            </div>
+                                            <div class="page-details">
+                                                Visited at ${timestamp}
+                                            </div>
                                         </div>
-                                        <div class="page-details">
-                                            ${timestamp} • Session: ${page.sessionDuration}s • 
-                                            ${page.platform} • ${page.screenWidth}x${page.screenHeight}
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
+                                    `;
+                                }).join('')}
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        // Toggle session collapse/expand
+        function toggleSession(index) {
+            const content = document.getElementById(`content-${index}`);
+            const icon = document.getElementById(`icon-${index}`);
+            
+            content.classList.toggle('collapsed');
+            icon.classList.toggle('collapsed');
         }
 
         // Update statistics
