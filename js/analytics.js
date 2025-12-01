@@ -3,7 +3,7 @@
     'use strict';
 
     // CONFIGURATION: Replace this with your Google Apps Script Web App URL
-    const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0JNo1eYXx_HAQWbD0-634xb3QNG67fjF-TiaTqfu_w08X9gT8E8-MChvqHguvq-io/exec';
     
     // Set to false to disable Google Sheets logging (will only log locally)
     const ENABLE_REMOTE_LOGGING = true;
