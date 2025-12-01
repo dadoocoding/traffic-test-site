@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Traffic Test Site</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .filter {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .visits-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .visit-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 4px;
+        }
+
+        .visit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .visit-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .visit-time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .data-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+
+        .data-section h4 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.85rem;
+        }
+
+        .data-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .data-value {
+            color: #333;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+
+        .json-viewer {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 400px;
+            margin-top: 1rem;
+        }
+
+        .toggle-json {
+            background: #34495e;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .toggle-json:hover {
+            background: #2c3e50;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Analytics Dashboard</h1>
+        <p>Real-time visitor tracking and fingerprinting data</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="totalVisits">0</div>
+            <div class="stat-label">Total Visits</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="uniqueIPs">0</div>
+            <div class="stat-label">Unique Fingerprints</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="uniquePages">0</div>
+            <div class="stat-label">Pages Visited</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="avgDuration">0s</div>
+            <div class="stat-label">Avg. Session</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="refreshData()">🔄 Refresh</button>
+        <button class="btn btn-success" onclick="exportData()">💾 Export JSON</button>
+        <button class="btn btn-danger" onclick="clearData()">🗑️ Clear All Data</button>
+        <select class="filter" id="pageFilter" onchange="filterVisits()">
+            <option value="all">All Pages</option>
+        </select>
+        <input type="text" class="filter" id="searchFilter" placeholder="Search..." oninput="filterVisits()">
+    </div>
+
+    <div class="visits-container">
+        <h2 style="margin-bottom: 1rem;">Visit History</h2>
+        <div id="visitsDisplay"></div>
+    </div>
+
+    <script>
+        let allVisits = [];
+        let filteredVisits = [];
+
+        function loadData() {
+            try {
+                const stored = localStorage.getItem('visits');
+                allVisits = stored ? JSON.parse(stored) : [];
+                filteredVisits = [...allVisits];
+                updateStats();
+                updatePageFilter();
+                displayVisits();
+            } catch (e) {
+                console.error('Error loading data:', e);
+                document.getElementById('visitsDisplay').innerHTML = 
+                    '<div class="no-data">Error loading data. Check console for details.</div>';
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalVisits').textContent = allVisits.length;
+
+            // Count unique fingerprints (canvas)
+            const uniqueFingerprints = new Set(allVisits.map(v => v.canvasFingerprint)).size;
+            document.getElementById('uniqueIPs').textContent = uniqueFingerprints;
+
+            // Count unique pages
+            const uniquePages = new Set(allVisits.map(v => {
+                try {
+                    return new URL(v.url).pathname;
+                } catch {
+                    return v.url;
+                }
+            })).size;
+            document.getElementById('uniquePages').textContent = uniquePages;
+
+            // Calculate average session (time between first and last visit)
+            if (allVisits.length > 1) {
+                const times = allVisits.map(v => new Date(v.timestamp).getTime()).sort();
+                const avgSession = Math.round((times[times.length - 1] - times[0]) / allVisits.length / 1000);
+                document.getElementById('avgDuration').textContent = avgSession + 's';
+            }
+        }
+
+        function updatePageFilter() {
+            const pages = new Set(allVisits.map(v => {
+                try {
+                    return new URL(v.url).pathname;
+                } catch {
+                    return v.url;
+                }
+            }));
+            
+            const select = document.getElementById('pageFilter');
+            select.innerHTML = '<option value="all">All Pages</option>';
+            pages.forEach(page => {
+                const option = document.createElement('option');
+                option.value = page;
+                option.textContent = page;
+                select.appendChild(option);
+            });
+        }
+
+        function filterVisits() {
+            const pageFilter = document.getElementById('pageFilter').value;
+            const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+
+            filteredVisits = allVisits.filter(visit => {
+                // Page filter
+                let matchesPage = true;
+                if (pageFilter !== 'all') {
+                    try {
+                        matchesPage = new URL(visit.url).pathname === pageFilter;
+                    } catch {
+                        matchesPage = visit.url === pageFilter;
+                    }
+                }
+
+                // Search filter
+                let matchesSearch = true;
+                if (searchTerm) {
+                    const searchString = JSON.stringify(visit).toLowerCase();
+                    matchesSearch = searchString.includes(searchTerm);
+                }
+
+                return matchesPage && matchesSearch;
+            });
+
+            displayVisits();
+        }
+
+        function displayVisits() {
+            const container = document.getElementById('visitsDisplay');
+
+            if (filteredVisits.length === 0) {
+                container.innerHTML = '<div class="no-data">No visits recorded yet. Visit the site pages to generate data.</div>';
+                return;
+            }
+
+            container.innerHTML = filteredVisits.map((visit, index) => {
+                const visitNum = allVisits.indexOf(visit) + 1;
+                const date = new Date(visit.timestamp);
+                const timeStr = date.toLocaleString();
+
+                return `
+                    <div class="visit-card">
+                        <div class="visit-header">
+                            <span class="visit-number">Visit #${visitNum}</span>
+                            <span class="visit-time">${timeStr}</span>
+                        </div>
+                        <div class="data-grid">
+                            <div class="data-section">
+                                <h4>Page Info</h4>
+                                <div class="data-item">
+                                    <span class="data-label">URL:</span>
+                                    <span class="data-value">${visit.url}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Title:</span>
+                                    <span class="data-value">${visit.title}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Referrer:</span>
+                                    <span class="data-value">${visit.referrer || 'Direct'}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="data-section">
+                                <h4>Browser</h4>
+                                <div class="data-item">
+                                    <span class="data-label">User Agent:</span>
+                                    <span class="data-value">${visit.userAgent.substring(0, 50)}...</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Platform:</span>
+                                    <span class="data-value">${visit.platform}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Language:</span>
+                                    <span class="data-value">${visit.language}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Cookies:</span>
+                                    <span class="data-value">${visit.cookieEnabled ? 'Enabled' : 'Disabled'}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="data-section">
+                                <h4>Screen & Device</h4>
+                                <div class="data-item">
+                                    <span class="data-label">Resolution:</span>
+                                    <span class="data-value">${visit.screenWidth}x${visit.screenHeight}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Viewport:</span>
+                                    <span class="data-value">${visit.viewportWidth}x${visit.viewportHeight}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Color Depth:</span>
+                                    <span class="data-value">${visit.screenColorDepth}-bit</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">CPU Cores:</span>
+                                    <span class="data-value">${visit.hardwareConcurrency}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Touch Points:</span>
+                                    <span class="data-value">${visit.maxTouchPoints}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="data-section">
+                                <h4>Fingerprints</h4>
+                                <div class="data-item">
+                                    <span class="data-label">Canvas:</span>
+                                    <span class="data-value">${visit.canvasFingerprint.substring(0, 20)}...</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">WebGL Vendor:</span>
+                                    <span class="data-value">${visit.webglFingerprint.vendor || 'N/A'}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">WebGL Renderer:</span>
+                                    <span class="data-value">${visit.webglFingerprint.renderer?.substring(0, 30) || 'N/A'}...</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Detected Fonts:</span>
+                                    <span class="data-value">${visit.fonts.length} fonts</span>
+                                </div>
+                            </div>
+                            
+                            <div class="data-section">
+                                <h4>Location & Network</h4>
+                                <div class="data-item">
+                                    <span class="data-label">Timezone:</span>
+                                    <span class="data-value">${visit.timezone}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Connection:</span>
+                                    <span class="data-value">${visit.connection.effectiveType}</span>
+                                </div>
+                                <div class="data-item">
+                                    <span class="data-label">Downlink:</span>
+                                    <span class="data-value">${visit.connection.downlink} Mbps</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="toggle-json" onclick="toggleJSON(${visitNum})">View Full JSON</button>
+                        <div id="json-${visitNum}" class="json-viewer hidden">
+                            <pre>${JSON.stringify(visit, null, 2)}</pre>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleJSON(visitNum) {
+            const jsonDiv = document.getElementById(`json-${visitNum}`);
+            jsonDiv.classList.toggle('hidden');
+        }
+
+        function refreshData() {
+            loadData();
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(allVisits, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `analytics-data-${new Date().toISOString()}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function clearData() {
+            if (confirm('Are you sure you want to clear all visit data? This cannot be undone.')) {
+                localStorage.removeItem('visits');
+                localStorage.removeItem('lastVisit');
+                allVisits = [];
+                filteredVisits = [];
+                loadData();
+                alert('All data cleared successfully.');
+            }
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshData, 5000);
+
+        // Initial load
+        loadData();
+    </script>
+</body>
+</html>
