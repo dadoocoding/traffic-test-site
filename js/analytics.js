@@ -1,4 +1,5 @@
 //const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0JNo1eYXx_HAQWbD0-634xb3QNG67fjF-TiaTqfu_w08X9gT8E8-MChvqHguvq-io/exec';
+// Analytics and Fingerprinting Script with Google Sheets Backend
 (function() {
     'use strict';
 
@@ -30,6 +31,13 @@
         const now = Date.now();
         const timeOnPage = Math.round((now - pageLoadTime) / 1000); // seconds
         const sessionDuration = Math.round((now - sessionStartTime) / 1000); // seconds
+        
+        console.log('🔍 DEBUG collectData():');
+        console.log('  - Current time:', now);
+        console.log('  - Page load time:', pageLoadTime);
+        console.log('  - Time difference (ms):', now - pageLoadTime);
+        console.log('  - Time on page (s):', timeOnPage);
+        console.log('  - Session duration (s):', sessionDuration);
         
         const data = {
             // Timestamp
@@ -295,9 +303,17 @@
     
     // Send final page duration when leaving
     function sendPageLeaveData() {
+        console.log('🚪 =================================');
+        console.log('🚪 PAGE LEAVE EVENT TRIGGERED');
+        console.log('🚪 =================================');
+        
         const finalData = collectData();
         
-        console.log('🚪 Page leave detected! Time on page:', finalData.timeOnPage, 'seconds');
+        console.log('🚪 Final data collected:', {
+            timeOnPage: finalData.timeOnPage,
+            sessionDuration: finalData.sessionDuration,
+            url: finalData.url
+        });
         
         // Log locally
         try {
