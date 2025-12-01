@@ -8,11 +8,37 @@
     // Set to false to disable Google Sheets logging (will only log locally)
     const ENABLE_REMOTE_LOGGING = true;
 
+    // Session tracking variables
+    let pageLoadTime = Date.now();
+    let sessionStartTime = getSessionStartTime();
+    let lastActivityTime = Date.now();
+    
+    // Get or create session start time
+    function getSessionStartTime() {
+        const stored = sessionStorage.getItem('sessionStartTime');
+        if (stored) {
+            return parseInt(stored);
+        } else {
+            const now = Date.now();
+            sessionStorage.setItem('sessionStartTime', now.toString());
+            return now;
+        }
+    }
+
     // Collect visitor data
     function collectData() {
+        const now = Date.now();
+        const timeOnPage = Math.round((now - pageLoadTime) / 1000); // seconds
+        const sessionDuration = Math.round((now - sessionStartTime) / 1000); // seconds
+        
         const data = {
             // Timestamp
             timestamp: new Date().toISOString(),
+            
+            // Duration tracking
+            timeOnPage: timeOnPage,
+            sessionDuration: sessionDuration,
+            sessionStartTime: new Date(sessionStartTime).toISOString(),
             
             // Page info
             url: window.location.href,
@@ -180,6 +206,9 @@
         // Flatten nested objects for easier Google Sheets storage
         const flatData = {
             timestamp: data.timestamp,
+            timeOnPage: data.timeOnPage,
+            sessionDuration: data.sessionDuration,
+            sessionStartTime: data.sessionStartTime,
             url: data.url,
             referrer: data.referrer,
             title: data.title,
@@ -247,6 +276,7 @@
     
     // Track clicks
     function trackClick(event) {
+        lastActivityTime = Date.now();
         const clickData = {
             timestamp: new Date().toISOString(),
             element: event.target.tagName,
@@ -258,6 +288,68 @@
         console.log('Click tracked:', clickData);
     }
     
+    // Track user activity for accurate time on page
+    function trackActivity() {
+        lastActivityTime = Date.now();
+    }
+    
+    // Send final page duration when leaving
+    function sendPageLeaveData() {
+        const finalData = collectData();
+        
+        // Log locally
+        try {
+            const visits = JSON.parse(localStorage.getItem('visits') || '[]');
+            visits.push(finalData);
+            localStorage.setItem('visits', JSON.stringify(visits));
+            localStorage.setItem('lastVisit', JSON.stringify(finalData));
+        } catch (e) {
+            console.error('Could not store visit data:', e);
+        }
+        
+        // Send to Google Sheets using sendBeacon (more reliable on page unload)
+        if (ENABLE_REMOTE_LOGGING && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+            const flatData = {
+                timestamp: finalData.timestamp,
+                timeOnPage: finalData.timeOnPage,
+                sessionDuration: finalData.sessionDuration,
+                sessionStartTime: finalData.sessionStartTime,
+                url: finalData.url,
+                referrer: finalData.referrer,
+                title: finalData.title,
+                userAgent: finalData.userAgent,
+                platform: finalData.platform,
+                language: finalData.language,
+                cookieEnabled: finalData.cookieEnabled,
+                screenWidth: finalData.screenWidth,
+                screenHeight: finalData.screenHeight,
+                screenColorDepth: finalData.screenColorDepth,
+                viewportWidth: finalData.viewportWidth,
+                viewportHeight: finalData.viewportHeight,
+                deviceMemory: finalData.deviceMemory,
+                hardwareConcurrency: finalData.hardwareConcurrency,
+                maxTouchPoints: finalData.maxTouchPoints,
+                connectionType: finalData.connection.effectiveType,
+                connectionDownlink: finalData.connection.downlink,
+                connectionRTT: finalData.connection.rtt,
+                timezone: finalData.timezone,
+                timezoneOffset: finalData.timezoneOffset,
+                canvasFingerprint: finalData.canvasFingerprint,
+                webglVendor: finalData.webglFingerprint.vendor || 'unknown',
+                webglRenderer: finalData.webglFingerprint.renderer || 'unknown',
+                fontsDetected: finalData.fonts.join(', '),
+                fontsCount: finalData.fonts.length,
+                loadTime: finalData.performance.timing.loadTime,
+                domReady: finalData.performance.timing.domReady
+            };
+            
+            const blob = new Blob([JSON.stringify(flatData)], { type: 'application/json' });
+            navigator.sendBeacon(GOOGLE_SCRIPT_URL, blob);
+        }
+        
+        console.log('📤 Final page duration sent:', finalData.timeOnPage, 'seconds');
+    }
+    
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
         const data = collectData();
@@ -266,21 +358,41 @@
         // Track all clicks
         document.addEventListener('click', trackClick);
         
+        // Track mouse movement and scrolling as activity
+        document.addEventListener('mousemove', trackActivity);
+        document.addEventListener('scroll', trackActivity);
+        document.addEventListener('keypress', trackActivity);
+        
         // Add visual indicator that tracking is active
         const indicator = document.createElement('div');
         indicator.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#4CAF50;color:white;padding:8px 12px;border-radius:4px;font-size:12px;z-index:9999;';
         indicator.textContent = '📊 Analytics Active';
         document.body.appendChild(indicator);
+        
+        // Update indicator with time on page every second
+        setInterval(function() {
+            const seconds = Math.round((Date.now() - pageLoadTime) / 1000);
+            indicator.textContent = `📊 Analytics Active (${seconds}s)`;
+        }, 1000);
     });
     
     // Track page visibility changes
     document.addEventListener('visibilitychange', function() {
         console.log('Visibility changed:', document.hidden ? 'hidden' : 'visible');
+        if (document.hidden) {
+            sendPageLeaveData();
+        }
     });
     
-    // Track beforeunload
+    // Track beforeunload (page leaving)
     window.addEventListener('beforeunload', function() {
+        sendPageLeaveData();
         console.log('Page unloading at:', new Date().toISOString());
+    });
+    
+    // Also track pagehide (more reliable on mobile)
+    window.addEventListener('pagehide', function() {
+        sendPageLeaveData();
     });
     
 })();
